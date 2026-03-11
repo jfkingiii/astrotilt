@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-analyze_tilt.py — FITS Tilt Analysis via Star Eccentricity
+analyze_tilt.py — FITS/XISF Tilt Analysis via Star Eccentricity
 
-Measures star eccentricity across a 3×3 grid in each FITS image.
+Measures star eccentricity across a 3×3 grid in each image.
 Tilt causes stars near edges/corners to appear elongated (higher eccentricity).
 """
 
@@ -15,22 +15,36 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 from tqdm import tqdm
+from xisf import XISF
 
 from astrotilt.stars import analyze_cell
 
 
-def analyze_file(fits_path, nsigma=5.0, min_pixels=5, max_pixels=1000, verbose=False):
+def load_image_data(path):
+    """Load a FITS or XISF file and return a 2D float32 numpy array."""
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".xisf":
+        data = XISF(path).read_image(0)
+    else:
+        with fits.open(path, memmap=False) as hdul:
+            data = hdul[0].data
+    data = data.astype(np.float32)
+    if data.ndim == 3:  # color image — collapse to mono
+        data = data.mean(axis=2)
+    return data
+
+
+def analyze_file(image_path, nsigma=5.0, min_pixels=5, max_pixels=1000, verbose=False):
     """
-    Analyze a single FITS file. Returns list of dicts (one per grid cell).
+    Analyze a single FITS or XISF file. Returns list of dicts (one per grid cell).
     """
     GRID = 3
-    filename = os.path.basename(fits_path)
+    filename = os.path.basename(image_path)
 
     if verbose:
         print(f"  Processing {filename} ...", file=sys.stderr, end="", flush=True)
 
-    with fits.open(fits_path, memmap=False) as hdul:
-        data = hdul[0].data.astype(np.float32)
+    data = load_image_data(image_path)
 
     H, W = data.shape
     cell_h = H // GRID
@@ -69,14 +83,13 @@ def analyze_file(fits_path, nsigma=5.0, min_pixels=5, max_pixels=1000, verbose=F
     return rows_out
 
 
-def collect_fits_files(path_arg):
-    """Expand directory or glob pattern to list of FITS file paths."""
+def collect_image_files(path_arg):
+    """Expand directory or glob pattern to list of FITS/XISF file paths."""
     if os.path.isdir(path_arg):
-        files = sorted(glob.glob(os.path.join(path_arg, "*.fits")))
-        if not files:
-            files = sorted(glob.glob(os.path.join(path_arg, "*.fit")))
-        if not files:
-            files = sorted(glob.glob(os.path.join(path_arg, "*.FITS")))
+        files = []
+        for ext in ("*.fits", "*.fit", "*.FITS", "*.xisf", "*.XISF"):
+            files.extend(glob.glob(os.path.join(path_arg, ext)))
+        files = sorted(set(files))
     else:
         files = sorted(glob.glob(path_arg))
     return files
@@ -112,7 +125,7 @@ def main():
     )
     parser.add_argument(
         "input",
-        help="Directory containing *.fits files, or a glob pattern (e.g. 'data/*.fits')",
+        help="Directory containing *.fits/*.xisf files, or a glob pattern (e.g. 'data/*.xisf')",
     )
     parser.add_argument(
         "--threshold",
@@ -149,19 +162,19 @@ def main():
     )
     args = parser.parse_args()
 
-    files = collect_fits_files(args.input)
+    files = collect_image_files(args.input)
     if not files:
-        print(f"Error: no FITS files found at '{args.input}'", file=sys.stderr)
+        print(f"Error: no FITS/XISF files found at '{args.input}'", file=sys.stderr)
         sys.exit(1)
 
     n = len(files)
     all_rows = []
     bar = tqdm(files, desc="Analyzing", unit="image", file=sys.stderr, disable=args.verbose)
-    for fits_path in bar:
+    for image_path in bar:
         if args.verbose:
-            print(f"  Processing {os.path.basename(fits_path)} ...", file=sys.stderr, end="", flush=True)
+            print(f"  Processing {os.path.basename(image_path)} ...", file=sys.stderr, end="", flush=True)
         rows = analyze_file(
-            fits_path,
+            image_path,
             nsigma=args.threshold,
             min_pixels=args.min_pixels,
             max_pixels=args.max_pixels,

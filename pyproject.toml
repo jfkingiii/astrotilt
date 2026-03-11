@@ -12,6 +12,7 @@ dependencies = [
     "pandas",
     "astropy",
     "tqdm",
+    "xisf",
 ]
 
 [project.scripts]
