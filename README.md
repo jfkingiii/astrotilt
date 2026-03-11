@@ -5,7 +5,7 @@ Measure telescope optical tilt by analyzing star eccentricity across a 3×3 grid
 ## Installation
 
 ```bash
-pipx install git+https://github.com/USER/astrotilt
+pipx install git+https://github.com/jfkingiii/astrotilt
 ```
 
 Or for development:
