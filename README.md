@@ -17,11 +17,14 @@ pip install -e .
 ## Usage
 
 ```bash
-# Analyze all .fits files in a directory, print grid summary to stderr
+# Analyze all .fits files in a directory, print median grid to stderr
 astrotilt samples/
 
-# Save per-cell results to CSV with verbose progress
-astrotilt "data/*.fits" --output results.csv --verbose
+# Save per-cell results to CSV
+astrotilt "data/*.fits" --output results.csv
+
+# Show per-file star counts and full summary tables (median, mean, std)
+astrotilt samples/ --verbose
 
 # Adjust detection parameters
 astrotilt img.fits --threshold 4.0 --min-pixels 3 --max-pixels 500
@@ -35,11 +38,11 @@ astrotilt img.fits --threshold 4.0 --min-pixels 3 --max-pixels 500
 | `--min-pixels N` | 5 | Minimum pixels per star blob |
 | `--max-pixels N` | 1000 | Maximum pixels per star blob |
 | `--output FILE` | — | Write CSV output to FILE |
-| `--verbose` | off | Print per-file progress to stderr |
+| `--verbose` | off | Show per-file star counts and full summary tables |
 
 ## Output
 
-The tool always prints a 3×3 eccentricity grid summary to stderr (median, mean, std across all input frames):
+A progress bar is shown during analysis. Afterwards, a 3×3 median eccentricity grid is printed to stderr:
 
 ```
 Median across subs
@@ -50,7 +53,9 @@ Median across subs
   row 2   0.3412    0.2790    0.3689
 ```
 
-With `--output`, it also writes a CSV with one row per file per cell:
+With `--verbose`, mean and standard deviation grids are also printed, along with a per-file star count.
+
+With `--output`, a CSV is written with one row per file per cell:
 
 | Column | Description |
 |--------|-------------|
@@ -63,5 +68,5 @@ With `--output`, it also writes a CSV with one row per file per cell:
 ## Requirements
 
 - Python 3.9+
-- FITS images from a cooled astronomy camera (monochrome, single HDU)
+- FITS images from an astronomy camera (monochrome, single HDU) preferably calibrated.
 - Enough stars per frame for reliable eccentricity statistics (typically 10+ per cell)
